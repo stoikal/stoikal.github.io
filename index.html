@@ -6,21 +6,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
-  <script src="scripts/main.js"></script>
-  <script src="scripts/game-of-life.js"></script>
+  <script src="scripts/main.js" defer></script>
+  <script src="scripts/game-of-life.js" defer></script>
   <style>
     body {
       font-family: 'Source Code Pro', monospace;
     }
 
     header {
-      border-bottom: 1px solid black;
+      /* border-bottom: 1px solid black; */
+      display: flex;
+      justify-content: space-between;
     }
 
     a {
       display: inline-block;
       height: 48px;
       line-height: 48px;
+    }
+
+    button.close {
+      all: unset;
+      cursor: pointer;
+      min-width: 48px;
+      /* border: 1px solid pink; */
+      text-align: center;
+      font-size: 2em;
+    }
+
+    button.close:hover {
+      color: #e65f5c;
     }
 
     .content > li {
@@ -30,7 +45,11 @@
     .clamp {
       max-width: 800px;
       margin: 0 auto;
-      background: rgba(250, 250, 250, 0.94);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .hidden {
+      display: none;
     }
 
     .gol-container {
@@ -48,10 +67,11 @@
   <div class="gol-container">
     <game-of-life></game-of-life>
   </div>
-  <header class="clamp">
+  <header class="clamp visible">
     <h1>Daftar Isi</h1>
+    <button type="button" aria-label="close" class="close">&#10006;</button>
   </header>
-  <main class="clamp">
+  <main class="clamp visible">
     <ul class="content">
       <li><a href="/visual-sort"><span>Melihat Algoritma Pengurutan Bekerja</span></a></li>
       <li><a href="/components"><span>Beberapa Komponen Web</span></a></li>

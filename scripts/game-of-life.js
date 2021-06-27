@@ -58,13 +58,13 @@ class GameOfLife extends HTMLElement {
     this.stepBtn = this._shadowRoot.querySelector('.step');
     this.ctx = this.canvas.getContext('2d');
 
-    this.colors = ['#FFFF82', '#ffff82', '#d6d472', '#b7b466', '#0F0326', '#451a34', '#7d3242', '#bd4e52', '#e65f5c'];
+    // settings
     this.colors = ['#ffffff', '#e0dee3', '#c1bdc6', '#9f9aa8', '#0F0326', '#451a34', '#7d3242', '#bd4e52', '#e65f5c'];
-    this.colors = ['#ffffff', '#ffffff', '#e8f5e9', '#c8e6c9', '#2e7d32', '#2e7d32', '#2e7d32', '#2e7d32', '#ffa500'];
-    this.gridColor = 'white';
-    this.cellSize = 10;
-    this.delay = 150;
-    this.initialPercentageAlive = 15;
+    this.gridColor = '#ffffff';
+    this.showGrid = false;
+    this.cellSize = 12;
+    this.minInterval = 100;
+    this.density = 0.375;
   }
 
   connectedCallback() {
@@ -86,7 +86,9 @@ class GameOfLife extends HTMLElement {
     this.playBtn.addEventListener('click', this.start.bind(this));
     this.stepBtn.addEventListener('click', this.step.bind(this));
 
-    this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
+    this.canvas.addEventListener('mousedown', this.handleCanvasMouseDown.bind(this));
+    this.canvas.addEventListener('mousemove', this.handleCanvasMouseMove.bind(this));
+    this.canvas.addEventListener('mouseup', this.handleCanvasMouseUp.bind(this));
 
     this.init();
   }
@@ -96,11 +98,45 @@ class GameOfLife extends HTMLElement {
     for (let x = 0; x < this.numCols; x += 1) {
       const colArr = [];
       for (let y = 0; y < this.numRows; y += 1) {
-        colArr.push(2 * Number(Math.random() < this.initialPercentageAlive / 100));
+        colArr.push(2 * Number(Math.random() < this.density));
       }
       temp.push(colArr);
     }
     this.snapshot = temp;
+  }
+
+  drawCircle(cell, x, y) {
+    this.ctx.beginPath();
+    this.ctx.fillStyle = this.colors[cell * 4];
+
+    const r = this.cellSize / 2;
+    this.ctx.arc(
+      this.offsetX + x * this.cellSize + r,
+      this.offsetY + y * this.cellSize + r,
+      r,
+      0, 2 * Math.PI,
+    );
+    this.ctx.closePath();
+    this.ctx.fill();
+    if (this.showGrid) {
+      this.ctx.stroke();
+    }
+  }
+
+  drawRectangle(cell, x, y) {
+    this.ctx.beginPath();
+    this.ctx.fillStyle = this.colors[cell * 4];
+    this.ctx.rect(
+      this.offsetX + x * this.cellSize,
+      this.offsetY + y * this.cellSize,
+      this.cellSize,
+      this.cellSize,
+    );
+    this.ctx.closePath();
+    this.ctx.fill();
+    if (this.showGrid) {
+      this.ctx.stroke();
+    }
   }
 
   draw() {
@@ -111,17 +147,7 @@ class GameOfLife extends HTMLElement {
           return;
         }
 
-        this.ctx.beginPath();
-        this.ctx.fillStyle = this.colors[cell * 4];
-        this.ctx.rect(
-          this.offsetX + x * this.cellSize,
-          this.offsetY + y * this.cellSize,
-          this.cellSize,
-          this.cellSize,
-        );
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
+        this.drawRectangle(cell, x, y);
       });
     });
   }
@@ -163,8 +189,6 @@ class GameOfLife extends HTMLElement {
         const neighborsCoordinates = this.getNeighborsCoordinates({ x, y });
         let neighbors = 0;
 
-        // console.log(x, y, neighborsCoordinates);
-
         Object.values(neighborsCoordinates).forEach(({ x: nX, y: nY }) => {
           const nCol = colArr[nX];
           if (nCol) {
@@ -191,7 +215,7 @@ class GameOfLife extends HTMLElement {
 
     this.timer = setTimeout(() => {
       window.requestAnimationFrame(this.loop.bind(this));
-    }, this.delay);
+    }, this.minInterval);
   }
 
   start() {
@@ -212,8 +236,30 @@ class GameOfLife extends HTMLElement {
     this.draw();
   }
 
-  handleCanvasClick(e) {
+  handleCanvasMouseUp() {
+    this.mouseDown = false;
+  }
+
+  handleCanvasMouseMove(e) {
+    if (this.mouseDown && false) {
+      const { left, top } = this.getBoundingClientRect();
+      const { clientX, clientY } = e;
+
+      const mouseX = clientX - left;
+      const mouseY = clientY - top;
+
+      const col = Math.floor((mouseX - this.offsetX) / this.cellSize);
+      const row = Math.floor((mouseY - this.offsetY) / this.cellSize);
+
+      this.prevSnapshot = [...this.snapshot.map((subArr) => [...subArr])];
+      this.snapshot[col][row] = Number(!(Math.floor(this.snapshot[col][row])));
+      this.draw();
+    }
+  }
+
+  handleCanvasMouseDown(e) {
     this.pause();
+    this.mouseDown = true;
     this.panel.style.display = 'block';
 
     const { left, top } = this.getBoundingClientRect();
