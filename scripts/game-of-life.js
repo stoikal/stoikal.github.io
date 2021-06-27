@@ -62,9 +62,9 @@ class GameOfLife extends HTMLElement {
     this.colors = ['#ffffff', '#e0dee3', '#c1bdc6', '#9f9aa8', '#0F0326', '#451a34', '#7d3242', '#bd4e52', '#e65f5c'];
     this.gridColor = '#ffffff';
     this.showGrid = false;
-    this.cellSize = 12;
-    this.minInterval = 100;
-    this.density = 0.375;
+    this.cellSize = 8;
+    this.minInterval = 80;
+    this.density = 0.275;
   }
 
   connectedCallback() {

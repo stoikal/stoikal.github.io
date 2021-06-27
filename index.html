@@ -27,11 +27,16 @@
 
     button.close {
       all: unset;
+      border-radius: 50%;
+      /* background-color: black; */
       cursor: pointer;
-      min-width: 48px;
+      width: 48px;
+      height: 48px;
       /* border: 1px solid pink; */
       text-align: center;
       font-size: 2em;
+      display: grid;
+      place-items: center ;
     }
 
     button.close:hover {
@@ -42,10 +47,14 @@
       height: 56px;
     }
 
+    .content > li > a > span {
+      background-color: white;
+    }
+
     .clamp {
       max-width: 800px;
       margin: 0 auto;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.85);
     }
 
     .hidden {
