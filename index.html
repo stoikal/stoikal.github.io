@@ -43,6 +43,21 @@
       color: #e65f5c;
     }
 
+    .row {
+      display: flex;
+      justify-content: center;
+    }
+
+    .col {
+      background-color: white;
+      padding-left: 16px;
+      border: 1px solid black;
+    }
+
+    .content {
+      padding-right: 40px;
+    }
+
     .content > li {
       height: 56px;
     }
@@ -76,16 +91,21 @@
   <div class="gol-container">
     <game-of-life></game-of-life>
   </div>
-  <header class="clamp visible">
-    <h1>Daftar Isi</h1>
-    <button type="button" aria-label="close" class="close">&#10006;</button>
-  </header>
-  <main class="clamp visible">
-    <ul class="content">
-      <li><a href="/visual-sort"><span>Melihat Algoritma Pengurutan Bekerja</span></a></li>
-      <li><a href="/tala"><span>Referensi Nada Pelog</span></a></li>
-      <li><a href="/guitarhelp"><span>Contekan Skala/Modus pada Gitar</span></a></li>
-    </ul>
-  </main>
+
+  <div class="row">
+    <div class="col">
+      <header class="clamp visible">
+        <h1>Daftar Isi</h1>
+        <button type="button" aria-label="close" class="close">&#10006;</button>
+      </header>
+      <main class="clamp visible">
+        <ul class="content">
+          <li><a href="/visual-sort"><span>Melihat Algoritma Pengurutan Bekerja</span></a></li>
+          <li><a href="/tala"><span>Referensi Nada Pelog</span></a></li>
+          <li><a href="/guitarhelp"><span>Contekan Skala/Modus pada Gitar</span></a></li>
+        </ul>
+      </main>
+    </div>
+  </div>
 </body>
 </html>
