@@ -173,6 +173,10 @@ class GameOfLife extends HTMLElement {
       this.#canvas.canvas.classList.remove("grabbing")
     })
 
+    this.#canvas.canvas.addEventListener("mouseout", () => {
+      this.#canvas.canvas.classList.remove("grabbing")
+    })
+
     let prevX = 0;
     let prevY = 0;
 
