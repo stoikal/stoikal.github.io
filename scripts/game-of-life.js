@@ -1,8 +1,108 @@
+
+// Conway's Game of Life rules:
+// 1. Any live cell with two or three live neighbours survives.
+// 2. Any dead cell with three live neighbours becomes a live cell.
+// 3. All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+
 class GameOfLife extends HTMLElement {
+  #frame = 0;
+
+  #config = {
+    CELL_SIZE: 16,
+    INITIAL_DENSITY: 0.2,
+    MAX_FPS: 24,
+    COLORS_BY_AGE: [
+      "#e65f5c", // age 1
+      "#bd4e52",
+      "#7d3242",
+      "#451a34",
+      "#0F0326",
+    ],
+    TRAIL_COLORS_BY_AGE: [
+      "#9f9aa8",
+      "#9f9aa8",
+      "#9f9aa8",
+      "#9f9aa8",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#c1bdc6",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#e0dee3",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+      "#f3f0f7",
+    ]
+  }
+
+  #canvas = {
+    canvas: null,
+    ctx: null,
+    width: null,
+    height: null,
+  }
+
+  #arena = {
+    offsetX: null,
+    offsetY: null,
+    xCellCount: null,
+    yCellCount: null,
+  }
+
+  #state = null;
+  #history = []
+
   constructor() {
     super();
 
-    this._shadowRoot = this.attachShadow({ mode: 'open' });
+    this._shadowRoot = this.attachShadow({ mode: "open" });
     this._shadowRoot.innerHTML = `
       <style>
         * {
@@ -25,8 +125,6 @@ class GameOfLife extends HTMLElement {
         canvas {
           cursor: pointer;
           box-sizing: border-box;
-          border: 1px solid #000000;
-          border: none;
           background: #e8f5e9;
         }
         
@@ -41,246 +139,304 @@ class GameOfLife extends HTMLElement {
         <canvas>
           Your browser does not support HTML5 canvas.
         </canvas>
-        <div class="panel">
-          <button type="button" class="clear">clear</button>
-          <button type="button" class="pause">pause</button>
-          <button type="button" class="play">play</button>
-          <button type="button" class="step">step</button>
-        </div>
+
       </div>
     `;
-
-    this.canvas = this._shadowRoot.querySelector('canvas');
-    this.panel = this._shadowRoot.querySelector('.panel');
-    this.clearBtn = this._shadowRoot.querySelector('.clear');
-    this.pauseBtn = this._shadowRoot.querySelector('.pause');
-    this.playBtn = this._shadowRoot.querySelector('.play');
-    this.stepBtn = this._shadowRoot.querySelector('.step');
-    this.ctx = this.canvas.getContext('2d');
-
-    // settings
-    this.colors = ['#ffffff', '#e0dee3', '#c1bdc6', '#9f9aa8', '#0F0326', '#451a34', '#7d3242', '#bd4e52', '#e65f5c'];
-    this.gridColor = '#ffffff';
-    this.showGrid = false;
-    this.cellSize = 8;
-    this.minInterval = 80;
-    this.density = 0.275;
   }
 
-  connectedCallback() {
-    const { width, height } = this.parentElement.getBoundingClientRect();
-    this.canvas.width = width;
-    this.canvas.height = height;
+  connectedCallback () {
+    this.#canvas = this.#getCanvas();
+    this.#arena = this.#getArena(this.#canvas);
+    this.#state = this.#getInitialState();
 
-    this.width = width;
-    this.height = height;
+      this.#canvas.canvas.addEventListener("click", () => {
+        this.#step();
+      })
 
-    this.numCols = Math.floor(width / this.cellSize);
-    this.numRows = Math.floor(height / this.cellSize);
+      this.#canvas.canvas.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.#back();
+      })
 
-    this.offsetX = Math.floor((width % this.cellSize) / 2);
-    this.offsetY = Math.floor((height % this.cellSize) / 2);
-
-    this.clearBtn.addEventListener('click', this.clear.bind(this));
-    this.pauseBtn.addEventListener('click', this.pause.bind(this));
-    this.playBtn.addEventListener('click', this.start.bind(this));
-    this.stepBtn.addEventListener('click', this.step.bind(this));
-
-    this.canvas.addEventListener('mousedown', this.handleCanvasMouseDown.bind(this));
-    this.canvas.addEventListener('mousemove', this.handleCanvasMouseMove.bind(this));
-    this.canvas.addEventListener('mouseup', this.handleCanvasMouseUp.bind(this));
-
-    this.init();
+    // this.#draw(this.#state)
+    this.#startAnimation();
   }
 
-  randomize() {
-    const temp = [];
-    for (let x = 0; x < this.numCols; x += 1) {
-      const colArr = [];
-      for (let y = 0; y < this.numRows; y += 1) {
-        colArr.push(2 * Number(Math.random() < this.density));
+  #step () {
+    this.#frame++;
+    this.#history.push(this.#state);
+    this.#state = this.#calculateState(this.#state);
+    this.#draw(this.#state);
+  }
+
+  #back () {
+    if (this.#history.length) {
+      this.#state = this.#history.pop();
+      this.#draw(this.#state);
+      this.#frame--;
+    }
+  }
+
+  #startAnimation () {
+    this.#animate();
+  }
+
+  #animate () {
+    const { MAX_FPS } = this.#config;
+
+    this.#frame++
+      
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        this.#animate()
+      }, Math.round(1000 / MAX_FPS));
+    })
+
+    this.#draw(this.#state);
+    this.#state = this.#calculateState(this.#state);
+  }
+
+  #calculateState = (prevState) => {
+    const { TRAIL_COLORS_BY_AGE } = this.#config;
+
+    const state = {};
+    const checked = {};
+  
+    Object.entries(prevState).forEach(([key, age]) => {
+      const coord = this.#stringToCoordinate(key);
+      const neighboringCoords = this.#getNeighboringCoordinates(coord);
+      const neighborCount = this.#getLiveCellsCount(neighboringCoords, prevState);
+      const livesOn = neighborCount === 2 || neighborCount === 3;
+
+      if (age > 0) {
+        if (livesOn) {
+          state[key] = age + 1;
+        } else {
+          state[key] = 0; // dies
+        }
+        checked[key] = true;
       }
-      temp.push(colArr);
-    }
-    this.snapshot = temp;
-  }
 
-  drawCircle(cell, x, y) {
-    this.ctx.beginPath();
-    this.ctx.fillStyle = this.colors[cell * 4];
 
-    const r = this.cellSize / 2;
-    this.ctx.arc(
-      this.offsetX + x * this.cellSize + r,
-      this.offsetY + y * this.cellSize + r,
-      r,
-      0, 2 * Math.PI,
-    );
-    this.ctx.closePath();
-    this.ctx.fill();
-    if (this.showGrid) {
-      this.ctx.stroke();
-    }
-  }
+      for (const coord of neighboringCoords) {
+        const neighborKey = String(coord);
+        const isChecked = checked[neighborKey];
 
-  drawRectangle(cell, x, y) {
-    this.ctx.beginPath();
-    this.ctx.fillStyle = this.colors[cell * 4];
-    this.ctx.rect(
-      this.offsetX + x * this.cellSize,
-      this.offsetY + y * this.cellSize,
-      this.cellSize,
-      this.cellSize,
-    );
-    this.ctx.closePath();
-    this.ctx.fill();
-    if (this.showGrid) {
-      this.ctx.stroke();
-    }
-  }
+        checked[neighborKey] = true;
 
-  draw() {
-    this.ctx.strokeStyle = this.gridColor;
-    this.snapshot.forEach((col, x) => {
-      col.forEach((cell, y) => {
-        if (this.prevSnapshot && this.prevSnapshot[x] && this.prevSnapshot[x][y] === cell) {
-          return;
+        if (isChecked) continue;
+        const neighborNeighboringCoords = this.#getNeighboringCoordinates(coord)
+        const count = this.#getLiveCellsCount(neighborNeighboringCoords, prevState)
+
+
+        if (count === 3) {
+          state[neighborKey] = 1 // born;
         }
 
-        this.drawRectangle(cell, x, y);
-      });
+      }
+
+      const isTrail = age < 1;
+
+      if (isTrail && state[key] === undefined) {
+        const maxTrailAge = TRAIL_COLORS_BY_AGE.length;
+        const trailAge = (age * -1) + 1;
+
+        if (trailAge < maxTrailAge) {
+          state[key] = age - 1;
+        }
+      }
+    })
+
+    return state;
+  }
+
+  #getNeighboringCoordinates = (coord) => {
+    const coordinates = []
+  
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        const isSelf = i === 0 && j === 0;
+        if (isSelf) continue;
+  
+        const nx = coord[0] + i;
+        const ny = coord[1] + j;
+  
+        coordinates.push([nx, ny])
+      }
+    }
+  
+    return coordinates;
+  }
+
+  #getLiveCellsCount = (coordinates, state) => {
+    let count = 0;
+  
+    coordinates.forEach((coordinate) => {
+      const isAlive = state[String(coordinate)] > 0;
+  
+      if (isAlive) {
+        count++;
+      }
+    })
+  
+    return count;
+  }
+
+  #draw (state) {
+    const { canvas, width } = this.#canvas;
+
+    canvas.width = width; // clear canvas
+    
+    Object.entries(state).forEach(([key, age]) => {
+      const [x, y] = this.#stringToCoordinate(key)
+
+      this.#drawRectangle(x, y, age);
     });
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  getNeighborsCoordinates({ x, y }) {
+  #drawRectangle (x, y, age) {
+    const { CELL_SIZE } = this.#config;
+    const { ctx } = this.#canvas;
+    const { offsetX, offsetY } = this.#arena;
+
+    ctx.beginPath();
+    ctx.fillStyle = this.#getColor(age);
+    ctx.rect(
+      offsetX + x * CELL_SIZE,
+      offsetY + y * CELL_SIZE,
+      CELL_SIZE,
+      CELL_SIZE,
+    );
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  #getCanvas () {
+    const { width, height } = this.parentElement.getBoundingClientRect();
+    const canvas = this._shadowRoot.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = width;
+    canvas.height = height;
+
     return {
-      nw: { x: x - 1, y: y - 1 },
-      n: { x, y: y - 1 },
-      ne: { x: x + 1, y: y - 1 },
-      w: { x: x - 1, y },
-      e: { x: x + 1, y },
-      sw: { x: x - 1, y: y + 1 },
-      s: { x, y: y + 1 },
-      se: { x: x + 1, y: y + 1 },
-    };
+      canvas,
+      ctx,
+      width,
+      height,
+    }
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  calculateNextState(prevState, numNeighbors) {
-    const currentState = prevState >= 1 ? 1 : prevState;
-    let nextState = currentState ? currentState - 0.25 : 0;
+  #getArena (canvas) {
+    const { CELL_SIZE } = this.#config;
+    const { width, height } = canvas;
 
-    if (prevState >= 1 && (numNeighbors === 2 || numNeighbors === 3)) {
-      nextState = prevState > 1 ? prevState - 0.25 : 1;
+    const xCellCount = Math.floor(width / CELL_SIZE);
+    const yCellCount = Math.floor(height / CELL_SIZE);  
+  
+    const offsetX = Math.floor((width % CELL_SIZE) / 2);
+    const offsetY = Math.floor((height % CELL_SIZE) / 2);
+
+    return {
+      offsetX,
+      offsetY,
+      xCellCount,
+      yCellCount,
     }
-
-    if (currentState < 1 && numNeighbors === 3) {
-      nextState = 2;
-    }
-
-    return nextState;
   }
 
-  next() {
-    this.prevSnapshot = this.snapshot;
-    this.snapshot = this.snapshot.map((col, x, colArr) => (
-      col.map((cell, y) => {
-        const neighborsCoordinates = this.getNeighborsCoordinates({ x, y });
-        let neighbors = 0;
+  #getInitialState () {
+    const { xCellCount, yCellCount } = this.#arena;
+    const middleX = Math.floor(xCellCount / 2);
+    const middleY = Math.floor(yCellCount / 2);
 
-        Object.values(neighborsCoordinates).forEach(({ x: nX, y: nY }) => {
-          const nCol = colArr[nX];
-          if (nCol) {
-            if (nCol[nY] >= 1) {
-              neighbors += 1;
-            }
-          }
-        });
+    const pattern = [
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "o.o.............................................o.o",
+      "..o.............................................o..",
+      "....o.........................................o....",
+      "....o.o.....................................o.o....",
+      "....o.oo...................................oo.o....",
+      "......o.....................................o......",
+    ]
 
-        return this.calculateNextState(cell, neighbors);
+    return this.#plainTextToStateObject(
+      pattern,
+      [middleX - Math.floor(pattern[0].length / 2), middleY - Math.floor(pattern.length / 2)],
+    );
+
+    const { INITIAL_DENSITY } = this.#config;
+
+    const initialCellCount = Math.round(INITIAL_DENSITY * xCellCount * yCellCount);
+    const state = {}
+
+    for (let i = 0; i < initialCellCount; i++) {
+      let coord = null;
+
+      do {
+        const x = this.#getRandomInt(0, xCellCount - 1);
+        const y = this.#getRandomInt(0, yCellCount - 1);
+
+        coord = [x, y];
+      } while (state[String(coord)] !== undefined);
+  
+      state[String(coord)] = 1; // born
+    }
+
+    return state;
+  }
+
+  #getRandomInt (min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+
+  #stringToCoordinate (str) {
+    const arr = str.split(',')
+
+    return [Number(arr[0]), Number(arr[1])];
+  }
+
+  #getColor (age) {
+    if (age > 0) {
+      const { COLORS_BY_AGE } = this.#config;
+      const index = age - 1
+
+      if (index > COLORS_BY_AGE.length - 1) {
+        return COLORS_BY_AGE.at(-1)
+      }
+  
+      return COLORS_BY_AGE[index];
+    }
+    // handle trail color
+    const { TRAIL_COLORS_BY_AGE } = this.#config;
+    const index = Math.abs((age));
+
+    return TRAIL_COLORS_BY_AGE[index];
+  }
+
+  #plainTextToStateObject (arr, topLeft) {
+    const [x, y] = topLeft;
+    const obj = {}
+
+    arr.forEach((rowStr, rowIndex) => {
+      const row = rowStr.split("");
+      row.forEach((col, colIndex) => {
+        if (col === "o") {
+          const key = String([x + colIndex, y + rowIndex])
+          obj[key] = 1;
+        }
       })
-    ));
-  }
+    })
 
-  step() {
-    this.pause();
-    this.next();
-    this.draw();
-  }
-
-  loop() {
-    this.next();
-    this.draw();
-
-    this.timer = setTimeout(() => {
-      window.requestAnimationFrame(this.loop.bind(this));
-    }, this.minInterval);
-  }
-
-  start() {
-    this.pause();
-    window.requestAnimationFrame(this.loop.bind(this));
-  }
-
-  pause() {
-    clearTimeout(this.timer);
-  }
-
-  clear() {
-    this.pause();
-    this.prevSnapshot = this.snapshot;
-    this.snapshot = this.snapshot.map((col) => (
-      col.map(() => 0)
-    ));
-    this.draw();
-  }
-
-  handleCanvasMouseUp() {
-    this.mouseDown = false;
-  }
-
-  handleCanvasMouseMove(e) {
-    if (this.mouseDown && false) {
-      const { left, top } = this.getBoundingClientRect();
-      const { clientX, clientY } = e;
-
-      const mouseX = clientX - left;
-      const mouseY = clientY - top;
-
-      const col = Math.floor((mouseX - this.offsetX) / this.cellSize);
-      const row = Math.floor((mouseY - this.offsetY) / this.cellSize);
-
-      this.prevSnapshot = [...this.snapshot.map((subArr) => [...subArr])];
-      this.snapshot[col][row] = Number(!(Math.floor(this.snapshot[col][row])));
-      this.draw();
-    }
-  }
-
-  handleCanvasMouseDown(e) {
-    this.pause();
-    this.mouseDown = true;
-    this.panel.style.display = 'block';
-
-    const { left, top } = this.getBoundingClientRect();
-    const { clientX, clientY } = e;
-
-    const mouseX = clientX - left;
-    const mouseY = clientY - top;
-
-    const col = Math.floor((mouseX - this.offsetX) / this.cellSize);
-    const row = Math.floor((mouseY - this.offsetY) / this.cellSize);
-
-    this.prevSnapshot = [...this.snapshot.map((subArr) => [...subArr])];
-    this.snapshot[col][row] = Number(!(Math.floor(this.snapshot[col][row])));
-    this.draw();
-  }
-
-  init() {
-    this.randomize();
-    this.draw();
-
-    this.start();
+    return obj
   }
 }
 
