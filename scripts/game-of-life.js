@@ -244,16 +244,21 @@ class GameOfLife extends HTMLElement {
   #animate () {
     const { MAX_FPS } = this.#config;
 
-    this.#frame++
-      
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        this.#animate()
-      }, Math.round(1000 / MAX_FPS));
-    })
+    const interval = 1000 / MAX_FPS;
+    let lastTimestamp = 0;
 
-    this.#draw(this.#state);
-    this.#state = this.#calculateState(this.#state);
+    const throttledAnimationFrame = (timestamp) => {
+      if (!lastTimestamp || timestamp - lastTimestamp >= interval) {
+        this.#frame++
+        this.#state = this.#calculateState(this.#state);
+        lastTimestamp = timestamp;
+      }
+
+      this.#draw(this.#state);
+      requestAnimationFrame(throttledAnimationFrame);
+    }
+
+    requestAnimationFrame(throttledAnimationFrame);
   }
 
   #calculateState = (prevState) => {
