@@ -203,48 +203,50 @@ class GameOfLife extends HTMLElement {
     const checked = {};
   
     Object.entries(prevState).forEach(([key, age]) => {
-      const coord = this.#stringToCoordinate(key);
-      const neighboringCoords = this.#getNeighboringCoordinates(coord);
-      const neighborCount = this.#getLiveCellsCount(neighboringCoords, prevState);
-      const livesOn = neighborCount === 2 || neighborCount === 3;
-
+      
       if (age > 0) {
+        const coord = this.#stringToCoordinate(key);
+        const neighboringCoords = this.#getNeighboringCoordinates(coord);
+        const neighborCount = this.#getLiveCellsCount(neighboringCoords, prevState);
+        const livesOn = neighborCount === 2 || neighborCount === 3;
+
         if (livesOn) {
           state[key] = age + 1;
         } else {
           state[key] = 0; // dies
         }
+
         checked[key] = true;
-      }
 
-
-      for (const coord of neighboringCoords) {
-        const neighborKey = String(coord);
-        const isChecked = checked[neighborKey];
-
-        checked[neighborKey] = true;
-
-        if (isChecked) continue;
-        const neighborNeighboringCoords = this.#getNeighboringCoordinates(coord)
-        const count = this.#getLiveCellsCount(neighborNeighboringCoords, prevState)
-
-
-        if (count === 3) {
-          state[neighborKey] = 1 // born;
+        for (const coord of neighboringCoords) {
+          const neighborKey = String(coord);
+          const isChecked = checked[neighborKey];
+  
+          checked[neighborKey] = true;
+  
+          if (isChecked) continue;
+          const neighborNeighboringCoords = this.#getNeighboringCoordinates(coord)
+          const count = this.#getLiveCellsCount(neighborNeighboringCoords, prevState)
+  
+  
+          if (count === 3) {
+            state[neighborKey] = 1 // born;
+          }
+  
         }
-
-      }
-
-      const isTrail = age < 1;
-
-      if (isTrail && state[key] === undefined) {
-        const maxTrailAge = TRAIL_COLORS_BY_AGE.length;
-        const trailAge = (age * -1) + 1;
-
-        if (trailAge < maxTrailAge) {
-          state[key] = age - 1;
+      } else {
+        if (state[key] === undefined) {
+          const maxTrailAge = TRAIL_COLORS_BY_AGE.length;
+          const trailAge = (age * -1) + 1;
+  
+          if (trailAge < maxTrailAge) {
+            state[key] = age - 1;
+          }
         }
       }
+
+
+
     })
 
     return state;
