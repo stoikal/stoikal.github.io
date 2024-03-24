@@ -10,7 +10,7 @@ class GameOfLife extends HTMLElement {
   #config = {
     CELL_SIZE: 16,
     INITIAL_DENSITY: 0.2,
-    MAX_FPS: 24,
+    MAX_FPS: 12,
     COLORS_BY_AGE: [
       "#e65f5c", // age 1
       "#bd4e52",
@@ -123,9 +123,13 @@ class GameOfLife extends HTMLElement {
         }
 
         canvas {
-          cursor: pointer;
+          cursor: grab;
           box-sizing: border-box;
           background: #e8f5e9;
+        }
+
+        canvas.grabbing {
+          cursor: grabbing;
         }
         
         button {
@@ -149,17 +153,69 @@ class GameOfLife extends HTMLElement {
     this.#arena = this.#getArena(this.#canvas);
     this.#state = this.#getInitialState();
 
-      this.#canvas.canvas.addEventListener("click", () => {
-        this.#step();
-      })
+    // this.#canvas.canvas.addEventListener("click", () => {
+    //   this.#step();
+    // })
 
-      this.#canvas.canvas.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        this.#back();
-      })
+    // this.#canvas.canvas.addEventListener("contextmenu", (e) => {
+    //   e.preventDefault();
+    //   this.#back();
+    // })
 
     // this.#draw(this.#state)
     this.#startAnimation();
+
+    this.#canvas.canvas.addEventListener("mousedown", () => {
+      this.#canvas.canvas.classList.add("grabbing")
+    })
+
+    this.#canvas.canvas.addEventListener("mouseup", () => {
+      this.#canvas.canvas.classList.remove("grabbing")
+    })
+
+    let prevX = 0;
+    let prevY = 0;
+
+    this.#canvas.canvas.addEventListener("mousemove", (event) => {
+      const currentX = event.clientX - this.#canvas.canvas.getBoundingClientRect().left;
+      const currentY = event.clientY - this.#canvas.canvas.getBoundingClientRect().top;
+      if (this.#canvas.canvas.classList.contains("grabbing")) {
+
+        
+        // Calculate the differences in mouse coordinates
+        const diffX = currentX - prevX;
+        const diffY = currentY - prevY;
+    
+        let offsetX = this.#arena.offsetX + diffX;
+        let offsetY = this.#arena.offsetY + diffY;
+        // Determine direction based on differences
+        // if (Math.abs(diffX) > Math.abs(diffY)) {
+        //   if (diffX > 0) {
+        //     offsetX += diffX
+        //   } else {
+        //     offsetX--
+        //   }
+        // } else {
+        //   if (diffY > 0) {
+        //     offsetY++
+        //   } else {
+        //     offsetY--
+        //   }
+        // }
+
+        this.#arena = {
+          ...this.#arena,
+          offsetX,
+          offsetY,
+        }
+      }
+      prevX = currentX;
+      prevY = currentY;
+    })
+
+    window.addEventListener('resize', () => {
+      this.#canvas = this.#getCanvas()
+    });
   }
 
   #step () {
@@ -286,9 +342,10 @@ class GameOfLife extends HTMLElement {
 
   #draw (state) {
     const { canvas, width } = this.#canvas;
-
+    
     canvas.width = width; // clear canvas
     
+    // TODO do not draw if out of bound
     Object.entries(state).forEach(([key, age]) => {
       const [x, y] = this.#stringToCoordinate(key)
 
