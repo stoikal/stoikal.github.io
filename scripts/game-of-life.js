@@ -11,6 +11,8 @@ class GameOfLife extends HTMLElement {
     CELL_SIZE: 16,
     INITIAL_DENSITY: 0.2,
     MAX_FPS: 12,
+    ENABLE_ZOOM: true,
+    ENABLE_PAN: true,
     COLORS_BY_AGE: [
       "#e65f5c", // age 1
       "#bd4e52",
@@ -123,9 +125,12 @@ class GameOfLife extends HTMLElement {
         }
 
         canvas {
-          cursor: grab;
           box-sizing: border-box;
           background: #e8f5e9;
+        }
+
+        canvas.grab {
+          cursor: grab;
         }
 
         canvas.grabbing {
@@ -151,90 +156,82 @@ class GameOfLife extends HTMLElement {
   connectedCallback () {
     this.#canvas = this.#getCanvas();
     this.#arena = this.#getArena(this.#canvas);
-    this.#state = this.#getInitialState();
+    this.#state = this.#getPattern();
 
-    // this.#canvas.canvas.addEventListener("click", () => {
-    //   this.#step();
-    // })
-
-    // this.#canvas.canvas.addEventListener("contextmenu", (e) => {
-    //   e.preventDefault();
-    //   this.#back();
-    // })
-
-    // this.#draw(this.#state)
     this.#startAnimation();
 
-    this.#canvas.canvas.addEventListener("mousedown", () => {
-      this.#canvas.canvas.classList.add("grabbing")
-    })
+    if (this.#config.ENABLE_ZOOM) {
+      this.#enableZoom();
+    }
 
-    this.#canvas.canvas.addEventListener("mouseup", () => {
-      this.#canvas.canvas.classList.remove("grabbing")
-    })
-
-    this.#canvas.canvas.addEventListener("mouseout", () => {
-      this.#canvas.canvas.classList.remove("grabbing")
-    })
-
-    let prevX = 0;
-    let prevY = 0;
-
-    this.#canvas.canvas.addEventListener("mousemove", (event) => {
-      const currentX = event.clientX - this.#canvas.canvas.getBoundingClientRect().left;
-      const currentY = event.clientY - this.#canvas.canvas.getBoundingClientRect().top;
-      if (this.#canvas.canvas.classList.contains("grabbing")) {
-
-        
-        // Calculate the differences in mouse coordinates
-        const diffX = currentX - prevX;
-        const diffY = currentY - prevY;
-    
-        let offsetX = this.#arena.offsetX + diffX;
-        let offsetY = this.#arena.offsetY + diffY;
-        // Determine direction based on differences
-        // if (Math.abs(diffX) > Math.abs(diffY)) {
-        //   if (diffX > 0) {
-        //     offsetX += diffX
-        //   } else {
-        //     offsetX--
-        //   }
-        // } else {
-        //   if (diffY > 0) {
-        //     offsetY++
-        //   } else {
-        //     offsetY--
-        //   }
-        // }
-
-        this.#arena = {
-          ...this.#arena,
-          offsetX,
-          offsetY,
-        }
-      }
-      prevX = currentX;
-      prevY = currentY;
-    })
+    if (this.#config.ENABLE_PAN) {
+      this.#enablePan();
+    }
 
     window.addEventListener('resize', () => {
       this.#canvas = this.#getCanvas()
     });
   }
 
-  #step () {
-    this.#frame++;
-    this.#history.push(this.#state);
-    this.#state = this.#calculateState(this.#state);
-    this.#draw(this.#state);
+  #enableZoom () {
+    const { canvas } = this.#canvas;
+
+    canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+  
+      if (event.deltaY < 0) {
+        this.#config.CELL_SIZE++
+        this.#arena.offsetX -= (event.clientX / 10);
+        this.#arena.offsetY -= (event.clientY / 10);
+      } else if (event.deltaY > 0) {
+        if (this.#config.CELL_SIZE > 1) {
+          this.#config.CELL_SIZE--
+          this.#arena.offsetX += (event.clientX / 10);
+          this.#arena.offsetY += (event.clientY / 10);
+        }
+      }
+    });
   }
 
-  #back () {
-    if (this.#history.length) {
-      this.#state = this.#history.pop();
-      this.#draw(this.#state);
-      this.#frame--;
-    }
+  #enablePan () {
+    const { canvas } = this.#canvas;
+
+    canvas.classList.add("grab");
+
+    canvas.addEventListener("mousedown", () => {
+      canvas.classList.add("grabbing");
+    })
+
+    canvas.addEventListener("mouseup", () => {
+      canvas.classList.remove("grabbing");
+    })
+
+    canvas.addEventListener("mouseout", () => {
+      canvas.classList.remove("grabbing");
+    })
+
+    let prevX = 0;
+    let prevY = 0;
+
+    canvas.addEventListener("mousemove", (event) => {
+      const { top, left } = canvas.getBoundingClientRect();
+      const currentX = event.clientX - left;
+      const currentY = event.clientY - top;
+
+      if (canvas.classList.contains("grabbing")) {
+        const diffX = currentX - prevX;
+        const diffY = currentY - prevY;
+    
+        let offsetX = this.#arena.offsetX + diffX;
+        let offsetY = this.#arena.offsetY + diffY;
+
+        this.#arena.offsetX = offsetX;
+        this.#arena.offsetY = offsetY;
+      }
+
+      prevX = currentX;
+      prevY = currentY;
+    })
   }
 
   #startAnimation () {
@@ -413,7 +410,7 @@ class GameOfLife extends HTMLElement {
     }
   }
 
-  #getInitialState () {
+  #getPattern () {
     const { xCellCount, yCellCount } = this.#arena;
     const middleX = Math.floor(xCellCount / 2);
     const middleY = Math.floor(yCellCount / 2);
@@ -437,10 +434,16 @@ class GameOfLife extends HTMLElement {
 
     return this.#plainTextToStateObject(
       pattern,
-      [middleX - Math.floor(pattern[0].length / 2), middleY - Math.floor(pattern.length / 2)],
+      [
+        middleX - Math.floor(pattern[0].length / 2),
+        middleY - Math.floor(pattern.length / 2),
+      ],
     );
+  }
 
+  #getInitialState () {
     const { INITIAL_DENSITY } = this.#config;
+    const { xCellCount, yCellCount } = this.#arena;
 
     const initialCellCount = Math.round(INITIAL_DENSITY * xCellCount * yCellCount);
     const state = {}
@@ -464,7 +467,6 @@ class GameOfLife extends HTMLElement {
   #getRandomInt (min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
-
 
   #stringToCoordinate (str) {
     const arr = str.split(',')
