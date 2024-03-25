@@ -10,9 +10,25 @@ class GameOfLife extends HTMLElement {
   #config = {
     CELL_SIZE: 16,
     INITIAL_DENSITY: 0.2,
-    MAX_FPS: 12,
+    MAX_FPS: 24,
     ENABLE_ZOOM: true,
     ENABLE_PAN: true,
+    INITIAL_PATTERN: [
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "...................................................",
+      "o.o.............................................o.o",
+      "..o.............................................o..",
+      "....o.........................................o....",
+      "....o.o.....................................o.o....",
+      "....o.oo...................................oo.o....",
+      "......o.....................................o......",
+    ],
     COLORS_BY_AGE: [
       "#e65f5c", // age 1
       "#bd4e52",
@@ -99,7 +115,6 @@ class GameOfLife extends HTMLElement {
   }
 
   #state = null;
-  #history = []
 
   constructor() {
     super();
@@ -250,7 +265,7 @@ class GameOfLife extends HTMLElement {
         this.#state = this.#calculateState(this.#state);
         lastTimestamp = timestamp;
       }
-
+      
       this.#draw(this.#state);
       requestAnimationFrame(throttledAnimationFrame);
     }
@@ -306,9 +321,6 @@ class GameOfLife extends HTMLElement {
           }
         }
       }
-
-
-
     })
 
     return state;
@@ -347,15 +359,27 @@ class GameOfLife extends HTMLElement {
   }
 
   #draw (state) {
-    const { canvas, width } = this.#canvas;
+    const { CELL_SIZE } = this.#config;
+    const { canvas, width, height } = this.#canvas;
+    const { offsetX, offsetY } = this.#arena;
+
+    const { top, left } = canvas.getBoundingClientRect();
     
     canvas.width = width; // clear canvas
     
-    // TODO do not draw if out of bound
     Object.entries(state).forEach(([key, age]) => {
-      const [x, y] = this.#stringToCoordinate(key)
+      const [x, y] = this.#stringToCoordinate(key);
 
-      this.#drawRectangle(x, y, age);
+      const isOutOfBound = (
+        (x + 1) * CELL_SIZE + offsetX < left || 
+        (y + 1) * CELL_SIZE + offsetY < top ||
+        x * CELL_SIZE + offsetX > left + width ||
+        y * CELL_SIZE + offsetY > top + height
+      )
+
+      if (!isOutOfBound) {
+        this.#drawRectangle(x, y, age);
+      }
     });
   }
 
@@ -412,36 +436,21 @@ class GameOfLife extends HTMLElement {
 
   #getPattern () {
     const { xCellCount, yCellCount } = this.#arena;
+    const { INITIAL_PATTERN } = this.#config;
+
     const middleX = Math.floor(xCellCount / 2);
     const middleY = Math.floor(yCellCount / 2);
 
-    const pattern = [
-      "...................................................",
-      "...................................................",
-      "...................................................",
-      "...................................................",
-      "...................................................",
-      "...................................................",
-      "...................................................",
-      "...................................................",
-      "o.o.............................................o.o",
-      "..o.............................................o..",
-      "....o.........................................o....",
-      "....o.o.....................................o.o....",
-      "....o.oo...................................oo.o....",
-      "......o.....................................o......",
-    ]
-
     return this.#plainTextToStateObject(
-      pattern,
+      INITIAL_PATTERN,
       [
-        middleX - Math.floor(pattern[0].length / 2),
-        middleY - Math.floor(pattern.length / 2),
+        middleX - Math.floor(INITIAL_PATTERN[0].length / 2),
+        middleY - Math.floor(INITIAL_PATTERN.length / 2),
       ],
     );
   }
 
-  #getInitialState () {
+  #getRandomizedState () {
     const { INITIAL_DENSITY } = this.#config;
     const { xCellCount, yCellCount } = this.#arena;
 
