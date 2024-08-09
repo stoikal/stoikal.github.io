@@ -184,7 +184,7 @@ class GameOfLife extends HTMLElement {
     }
 
     window.addEventListener('resize', () => {
-      this.#canvas = this.#getCanvas()
+      this.#canvas = this.#getCanvas();
     });
   }
 
@@ -215,15 +215,15 @@ class GameOfLife extends HTMLElement {
 
     canvas.addEventListener("mousedown", () => {
       canvas.classList.add("grabbing");
-    })
+    });
 
     canvas.addEventListener("mouseup", () => {
       canvas.classList.remove("grabbing");
-    })
+    });
 
     canvas.addEventListener("mouseout", () => {
       canvas.classList.remove("grabbing");
-    })
+    });
 
     let prevX = 0;
     let prevY = 0;
@@ -246,7 +246,7 @@ class GameOfLife extends HTMLElement {
 
       prevX = currentX;
       prevY = currentY;
-    })
+    });
   }
 
   #startAnimation () {
@@ -273,14 +273,15 @@ class GameOfLife extends HTMLElement {
     requestAnimationFrame(throttledAnimationFrame);
   }
 
-  #calculateState = (prevState) => {
+  #calculateState (prevState) {
     const { TRAIL_COLORS_BY_AGE } = this.#config;
 
     const state = {};
     const checked = {};
-  
-    Object.entries(prevState).forEach(([key, age]) => {
-      
+
+    for (let key in prevState) {
+      const age = prevState[key];
+
       if (age > 0) {
         const coord = this.#stringToCoordinate(key);
         const neighboringCoords = this.#getNeighboringCoordinates(coord);
@@ -302,8 +303,8 @@ class GameOfLife extends HTMLElement {
           checked[neighborKey] = true;
   
           if (isChecked) continue;
-          const neighborNeighboringCoords = this.#getNeighboringCoordinates(coord)
-          const count = this.#getLiveCellsCount(neighborNeighboringCoords, prevState)
+          const neighborNeighboringCoords = this.#getNeighboringCoordinates(coord);
+          const count = this.#getLiveCellsCount(neighborNeighboringCoords, prevState);
   
   
           if (count === 3) {
@@ -321,13 +322,13 @@ class GameOfLife extends HTMLElement {
           }
         }
       }
-    })
+    }
 
     return state;
   }
 
-  #getNeighboringCoordinates = (coord) => {
-    const coordinates = []
+  #getNeighboringCoordinates (coord) {
+    const coordinates = [];
   
     for (let i = -1; i <= 1; i++) {
       for (let j = -1; j <= 1; j++) {
@@ -344,7 +345,7 @@ class GameOfLife extends HTMLElement {
     return coordinates;
   }
 
-  #getLiveCellsCount = (coordinates, state) => {
+  #getLiveCellsCount (coordinates, state) {
     let count = 0;
   
     coordinates.forEach((coordinate) => {
@@ -375,7 +376,7 @@ class GameOfLife extends HTMLElement {
         (y + 1) * CELL_SIZE + offsetY < top ||
         x * CELL_SIZE + offsetX > left + width ||
         y * CELL_SIZE + offsetY > top + height
-      )
+      );
 
       if (!isOutOfBound) {
         this.#drawRectangle(x, y, age);
@@ -478,7 +479,7 @@ class GameOfLife extends HTMLElement {
   }
 
   #stringToCoordinate (str) {
-    const arr = str.split(',')
+    const arr = str.split(',');
 
     return [Number(arr[0]), Number(arr[1])];
   }
@@ -515,7 +516,7 @@ class GameOfLife extends HTMLElement {
       })
     })
 
-    return obj
+    return obj;
   }
 }
 
